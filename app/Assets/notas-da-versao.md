@@ -1,3 +1,11 @@
+## 1.0.0.40 — 07/10/2026
+- **GRepos no Linux**: o aplicativo agora roda também no Linux, com as mesmas telas e funções. A release traz dois arquivos a mais, `GRepos-<versão>-linux-x64` e `GRepos-<versão>-linux-x64-standalone`.
+- No Linux, o terminal embutido abre o seu shell; **Em janela** abre o emulador de terminal instalado, que dá para fixar em Preferências → Terminal.
+- No Linux, o botão **Local** abre o gerenciador de arquivos, e o diff externo acha `meld`, `kdiff3`, `bcompare` ou o VS Code sozinho — ou usa o comando que você informar.
+- No Linux, Preferências → Autenticação oferece o melhor gerenciador de credenciais instalado e avisa quando a única opção guarda o token em texto puro.
+- A atualização automática baixa o arquivo do sistema em uso e passa a procurar as versões novas em `GFiamoncini/GRepos`.
+- As mensagens do git são lidas corretamente mesmo quando o sistema está em português.
+
 ## 1.0.0.39 — 07/10/2026
 - Histórico: botão **Markdown** mostra a mensagem do commit renderizada (título, lista, link clicável). A escolha é lembrada.
 - **Copiar texto** leva a mensagem como foi escrita; **Copiar formatado** leva a renderizada, que cola com título, lista e link no Word, no Outlook e no Teams — e como texto limpo onde a formatação não chega.

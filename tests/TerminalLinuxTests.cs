@@ -7,7 +7,7 @@ namespace GRepos.Tests;
 
 /// <summary>
 /// O lado Linux do botão Terminal: achar o emulador e o shell. A busca recebe o PATH e o
-/// "existe" de fora, então roda igual em qualquer sistema.
+/// "existe" de fora, sem depender do que está instalado na máquina.
 /// </summary>
 public class TerminalLinuxTests
 {
@@ -75,16 +75,24 @@ public class TerminalLinuxTests
         Assert.Null(TerminalLinux.Shell(Existem(), ""));
     }
 
-    [Fact]
+    // só no Linux: a busca monta os caminhos com o separador do sistema, e no Windows
+    // "/usr/bin" + "git-credential-manager" não dá o caminho que o teste diz existir
+    [FatoLinux]
     public void HelperDeCredenciaisPrefereOQueGuardaComSeguranca()
     {
         Assert.Equal("manager", GitHubService.HelperDoLinux(
             Existem("/usr/bin/git-credential-manager", "/usr/libexec/git-core/git-credential-libsecret"), Path));
         Assert.Equal("libsecret", GitHubService.HelperDoLinux(
             Existem("/usr/libexec/git-core/git-credential-libsecret"), Path));
-        // sem nenhum dos dois sobra o arquivo em texto puro, e o botão diz isso
+        // sem nenhum dos dois sobra o arquivo em texto puro
         Assert.Equal("store", GitHubService.HelperDoLinux(Existem(), Path));
+    }
+
+    [Fact]
+    public void BotaoDoHelperDizOQueVaiSerUsado()
+    {
         Assert.Contains("texto puro", GitHubService.RotuloDoHelper("store", windows: false));
+        Assert.Contains("libsecret", GitHubService.RotuloDoHelper("libsecret", windows: false));
         Assert.Contains("Windows", GitHubService.RotuloDoHelper("manager", windows: true));
     }
 }

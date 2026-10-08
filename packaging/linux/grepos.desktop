@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=GRepos
+GenericName=Cliente Git
+Comment=Cliente Git para muitos repositórios ao mesmo tempo
+Exec=grepos
+Icon=grepos
+Terminal=false
+Categories=Development;RevisionControl;

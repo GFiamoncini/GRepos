@@ -9,6 +9,9 @@ namespace GRepos.Services;
 /// Acha e abre o Git Bash na pasta do repositório. O caminho configurado pode ser a pasta
 /// de instalação do Git ou o próprio executável; vazio, procura no PATH e nos lugares
 /// em que o instalador costuma deixar.
+///
+/// No Linux não existe Git Bash: o configurado é o emulador de terminal, e quem responde
+/// é o <see cref="TerminalLinux"/>.
 /// </summary>
 public static class GitBash
 {
@@ -20,6 +23,8 @@ public static class GitBash
                                     Func<string, bool>? existe = null,
                                     string? path = null)
     {
+        if (!OperatingSystem.IsWindows()) return TerminalLinux.Localizar(configurado, existe, path);
+
         existe ??= File.Exists;
 
         var conf = (configurado ?? "").Trim().Trim('"');
@@ -46,6 +51,9 @@ public static class GitBash
                                         Func<string, bool>? existe = null,
                                         string? path = null)
     {
+        // no Linux o shell é o do usuário; o configurado é o emulador da janela separada
+        if (!OperatingSystem.IsWindows()) return TerminalLinux.Shell(existe);
+
         existe ??= File.Exists;
         var achou = Localizar(configurado, existe, path);
         if (achou is null) return null;
@@ -54,6 +62,23 @@ public static class GitBash
 
         var bash = Path.Combine(Path.GetDirectoryName(achou) ?? "", "bin", "bash.exe");
         return existe(bash) ? bash : null;
+    }
+
+    /// <summary>Como o shell do terminal embutido é chamado.</summary>
+    public static IReadOnlyList<string> ArgumentosDoShell =>
+        OperatingSystem.IsWindows() ? new[] { "--login", "-i" } : new[] { "-i" };
+
+    /// <summary>Mensagem para quando <see cref="Localizar"/> não acha nada.</summary>
+    public static string NaoEncontrado(string? configurado)
+    {
+        var vazio = string.IsNullOrWhiteSpace(configurado);
+        if (OperatingSystem.IsWindows())
+            return vazio
+                ? "Git Bash não encontrado. Informe a pasta do Git em Preferências."
+                : "Git Bash não encontrado em " + configurado!.Trim() + ". Confira o caminho em Preferências.";
+        return vazio
+            ? "Nenhum emulador de terminal encontrado. Informe o comando em Preferências."
+            : "Terminal não encontrado: " + configurado!.Trim() + ". Confira o comando em Preferências.";
     }
 
     /// <summary>
@@ -95,18 +120,21 @@ public static class GitBash
                 yield return Path.Combine(raiz, "Git");
     }
 
-    /// <summary>Abre um Git Bash novo já posicionado em <paramref name="pasta"/>.</summary>
+    /// <summary>Abre um Git Bash (ou o terminal do sistema) já posicionado em <paramref name="pasta"/>.</summary>
     public static void Abrir(string pasta, string? configurado)
     {
         if (!Directory.Exists(pasta))
             throw new DirectoryNotFoundException("Pasta não encontrada: " + pasta);
 
-        var exe = Localizar(configurado) ?? throw new FileNotFoundException(
-            string.IsNullOrWhiteSpace(configurado)
-                ? "Git Bash não encontrado. Informe a pasta do Git em Preferências."
-                : "Git Bash não encontrado em " + configurado.Trim() + ". Confira o caminho em Preferências.");
+        var exe = Localizar(configurado) ?? throw new FileNotFoundException(NaoEncontrado(configurado));
 
         var cheia = Path.GetFullPath(pasta);
+        if (!OperatingSystem.IsWindows())
+        {
+            TerminalLinux.Abrir(exe, cheia);
+            return;
+        }
+
         var gitBash = Path.GetFileName(exe).Equals("git-bash.exe", StringComparison.OrdinalIgnoreCase);
         Process.Start(new ProcessStartInfo(exe)
         {

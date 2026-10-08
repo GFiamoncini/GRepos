@@ -10,7 +10,8 @@ namespace GRepos.Tests;
 
 /// <summary>
 /// Ferramenta de diff externa: achar o executável, montar a linha de comando e entregar
-/// as duas versões. A "ferramenta" dos testes é um .cmd que anota o que recebeu.
+/// as duas versões. A "ferramenta" dos testes é um .cmd (um script de shell no Linux)
+/// que anota o que recebeu.
 /// </summary>
 public class DiffExternoTests
 {
@@ -18,7 +19,7 @@ public class DiffExternoTests
     private static Func<string, bool> Existem(params string[] arquivos) =>
         p => arquivos.Contains(p, StringComparer.OrdinalIgnoreCase);
 
-    [Fact]
+    [FatoWindows]
     public void Pasta_configurada_acha_a_ferramenta_conhecida()
     {
         var exe = @"D:\Ferramentas\WinMerge\WinMergeU.exe";
@@ -26,7 +27,7 @@ public class DiffExternoTests
         Assert.Equal(exe, DiffExterno.Localizar("\"" + exe + "\"", Existem(exe), Array.Empty<string>()));
     }
 
-    [Fact]
+    [FatoWindows]
     public void Caminho_errado_nao_cai_na_busca_automatica()
     {
         var instalado = Raiz + @"\Beyond Compare 5\BCompare.exe";
@@ -34,7 +35,7 @@ public class DiffExternoTests
         Assert.Null(DiffExterno.Localizar(@"D:\nada\outro.exe", Existem(instalado), new[] { Raiz }));
     }
 
-    [Fact]
+    [FatoWindows]
     public void Vazio_procura_nas_pastas_dos_instaladores()
     {
         var instalado = Raiz + @"\Beyond Compare 4\BCompare.exe";
@@ -42,7 +43,7 @@ public class DiffExternoTests
         Assert.Null(DiffExterno.Localizar("", Existem(), new[] { Raiz }));
     }
 
-    [Fact]
+    [FatoWindows]
     public void Executavel_desconhecido_vale_com_os_argumentos_genericos()
     {
         var exe = @"D:\x\meudiff.exe";
@@ -50,7 +51,38 @@ public class DiffExternoTests
         Assert.Equal("\"a b.pas\" \"c.pas\"", DiffExterno.Argumentos(exe, "", "a b.pas", "c.pas", "E", "D"));
     }
 
-    [Fact]
+    [FatoLinux]
+    public void No_linux_vale_o_comando_o_caminho_ou_o_que_o_path_tiver()
+    {
+        var raizes = new[] { "/usr/local/bin", "/usr/bin" };
+        Func<string, bool> existe = p => p is "/usr/bin/meld" or "/usr/bin/kdiff3" or "/opt/bc/bcompare";
+
+        // vazio: a primeira conhecida que o PATH tiver, na ordem de preferência
+        Assert.Equal("/usr/bin/meld", DiffExterno.Localizar("", existe, raizes));
+        Assert.Null(DiffExterno.Localizar("", _ => false, raizes));
+
+        Assert.Equal("/usr/bin/kdiff3", DiffExterno.Localizar("kdiff3", existe, raizes));
+        Assert.Equal("/opt/bc/bcompare", DiffExterno.Localizar("/opt/bc/bcompare", existe, raizes));
+        Assert.Equal("/opt/bc/bcompare", DiffExterno.Localizar("/opt/bc/", existe, raizes));
+
+        // apontou para o que não existe: avisar, não cair na busca automática
+        Assert.Null(DiffExterno.Localizar("bcompare", existe, raizes));
+        Assert.Null(DiffExterno.Localizar("/opt/nada", existe, raizes));
+    }
+
+    [FatoLinux]
+    public void No_linux_os_argumentos_seguem_a_ferramenta()
+    {
+        Assert.Equal("-L \"a.pas (HEAD)\" -L \"a.pas (disco)\" \"l\" \"r\"",
+            DiffExterno.Argumentos("/usr/bin/meld", null, "l", "r", "a.pas (HEAD)", "a.pas (disco)"));
+        Assert.Equal("\"l\" \"r\" -lefttitle=\"E\" -righttitle=\"D\"",
+            DiffExterno.Argumentos("/usr/bin/bcompare", "", "l", "r", "E", "D"));
+        Assert.Equal("\"l\" \"r\"", DiffExterno.Argumentos("/usr/bin/meu-diff", null, "l", "r", "E", "D"));
+        Assert.Equal("--wait --diff l r",
+            DiffExterno.Argumentos("/usr/bin/meld", " --wait --diff $LOCAL $REMOTE ", "l", "r", "E", "D"));
+    }
+
+    [FatoWindows]
     public void Argumentos_padrao_seguem_a_ferramenta_e_o_modelo_do_usuario_manda()
     {
         Assert.Equal("\"l\" \"r\" /lefttitle=\"a.pas (HEAD)\" /righttitle=\"a.pas (disco)\"",
@@ -129,11 +161,17 @@ public class DiffExternoTests
             await Git(dir, "commit", "-qm", "inicial");
             File.WriteAllText(Path.Combine(dir, "a b.txt"), "dois\r\n");
 
-            File.WriteAllText(ferramenta, "@echo off\r\n(echo %~1\r\necho %~2)> \"" + recebido + "\"\r\n");
+            if (OperatingSystem.IsWindows())
+                File.WriteAllText(ferramenta, "@echo off\r\n(echo %~1\r\necho %~2)> \"" + recebido + "\"\r\n");
+            else
+            {
+                File.WriteAllText(ferramenta, "#!/bin/sh\nprintf '%s\\n' \"$1\" \"$2\" > '" + recebido + "'\n");
+                File.SetUnixFileMode(ferramenta, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
 
             await DiffExterno.AbrirAsync(dir,
                 VersaoDeArquivo.Em("HEAD", "a b.txt", "HEAD"), VersaoDeArquivo.NoDisco("a b.txt"),
-                ferramenta, "\"$LOCAL\" \"$REMOTE\"");
+                Path.GetFullPath(ferramenta), "\"$LOCAL\" \"$REMOTE\"");
 
             for (var i = 0; i < 100 && !File.Exists(recebido); i++) await Task.Delay(50);
             await Task.Delay(100);

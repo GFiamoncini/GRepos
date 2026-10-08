@@ -1027,7 +1027,11 @@ public class UiSmokeTests
 
     internal static WorktreesViewModel WorktreesPopulado()
     {
-        var vm = new WorktreesViewModel(new Repo { Id = "r1", Name = "Financeiro", Path = @"D:\Repos\Financeiro" },
+        var vm = new WorktreesViewModel(new Repo
+            {
+                Id = "r1", Name = "Financeiro",
+                Path = System.OperatingSystem.IsWindows() ? @"D:\Repos\Financeiro" : "/repos/Financeiro",
+            },
             new MainViewModel(new FakeDialogs()));
 
         vm.Lista.Add(new WorktreeItemViewModel

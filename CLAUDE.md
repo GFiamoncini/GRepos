@@ -4,8 +4,8 @@ Orientações para trabalhar neste repositório.
 
 ## O que é
 
-GRepos: cliente Git desktop (C# / .NET 8 + Avalonia) para gerenciar muitos repositórios sem
-uma aba por repositório. Diferencial: grupos na sidebar e o **par Origem × Destino** — o
+GRepos: cliente Git desktop (C# / .NET 8 + Avalonia, Windows e Linux) para gerenciar muitos
+repositórios sem uma aba por repositório. Diferencial: grupos na sidebar e o **par Origem × Destino** — o
 mesmo módulo em dois bancos (DBISAM/MySQL) tratado como uma entidade só.
 
 ## Comandos
@@ -13,6 +13,7 @@ mesmo módulo em dois bancos (DBISAM/MySQL) tratado como uma entidade só.
 ```bash
 dotnet run --project app   # abre o aplicativo
 dotnet publish app -c Release -r win-x64 --self-contained false -o dist   # gera dist/GRepos.exe
+dotnet publish app -c Release -r linux-x64 --self-contained false -o dist # gera dist/GRepos
 dotnet build               # compila
 dotnet test                # xunit (parser, grafo, workspace e telas headless)
 ```
@@ -65,6 +66,28 @@ velha. A barra de status mostra a data do executável em uso, justamente para co
 `app/Assets/notas-da-versao.md` (`## 1.0.0.N — dd/mm/aaaa` e os itens), escrita para quem
 usa o app, não como assunto de commit. É o que aparece em Preferências → Notas da versão;
 `NotasDaVersaoTests` falha se o arquivo sair do formato ou da ordem.
+
+## Windows e Linux
+
+O código é um só; o que é de cada sistema fica atrás de `OperatingSystem.IsWindows()`:
+
+- **Terminal embutido**: `PseudoTerminal.Iniciar` devolve o `ConPty` (Windows) ou o
+  `PtyUnix` (Linux). O `PtyUnix` não faz `fork`: quem cria o processo é o `Process`, e um
+  `sh` de uma linha liga a ponta escrava e chama `setsid -c`. A escrava é aberta **uma vez
+  só** nesse `sh` — abrir e fechar no meio faz o kernel avisar a ponta mestre de que o
+  terminal acabou (EIO), e a leitura termina antes de o shell nascer. Já aconteceu.
+- **Terminal e shell**: `GitBash` continua sendo a porta de entrada; no Linux ele delega
+  ao `TerminalLinux` (o configurado em `GitBashPath` é o emulador da janela separada; o
+  shell embutido é sempre o `$SHELL`).
+- **Textos de tela** que citam o sistema ("Git Bash", "Explorer", "guardado no Windows")
+  saem de `Plataforma`; no XAML, com `{x:Static svc:Plataforma.Algo}`.
+- **Mensagens do git**: o `GitService` roda o git com `LANGUAGE=en`. `MensagensGit` e os
+  testes casam o texto em inglês, e num Linux em português o git responde traduzido.
+- **Testes** que só fazem sentido num sistema usam `[FatoWindows]`, `[TeoriaWindows]` ou
+  `[FatoLinux]` (`tests/SoNoSistema.cs`): no outro aparecem como ignorados. Caminho com
+  letra de unidade (`C:\...`) não é caminho no Linux — `Path.GetFileName` não o parte.
+- **Release**: o nome do arquivo do Linux termina em `-linux-x64-standalone`; é por esse
+  fim que `Atualizador.SufixoStandalone` acha o que baixar. Mudou um, mude o outro.
 
 ## Regras
 

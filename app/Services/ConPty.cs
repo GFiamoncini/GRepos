@@ -14,7 +14,7 @@ namespace GRepos.Services;
 /// está num console de verdade, e a gente lê e escreve o fluxo VT por dois pipes. É o
 /// mesmo mecanismo do terminal do VS Code e do Windows Terminal.
 /// </summary>
-public sealed class ConPty : IDisposable
+public sealed class ConPty : IPseudoTerminal
 {
     private IntPtr _hpc;
     private IntPtr _processo;

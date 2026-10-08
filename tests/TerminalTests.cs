@@ -17,9 +17,9 @@ namespace GRepos.Tests;
 public class TerminalTests
 {
     /// <summary>
-    /// O bash de verdade dentro do ConPTY: o que se escreve chega ao shell, a saída volta
-    /// em UTF-8 (acento inteiro) e o diretório inicial é a pasta pedida, não o HOME.
-    /// Sem Git instalado não há o que testar.
+    /// O shell de verdade dentro do pseudoterminal (ConPTY no Windows, pty no Linux): o
+    /// que se escreve chega ao shell, a saída volta em UTF-8 (acento inteiro) e o
+    /// diretório inicial é a pasta pedida, não o HOME. Sem shell não há o que testar.
     /// </summary>
     [Fact]
     public async Task BashNoPseudoconsoleRespondeNaPastaPedida()
@@ -30,8 +30,8 @@ public class TerminalTests
         var pasta = Directory.CreateTempSubdirectory("grepos-term-").FullName;
         try
         {
-            using var pty = ConPty.Iniciar($"\"{bash}\" --login -i", pasta, 120, 30,
-                new System.Collections.Generic.Dictionary<string, string?> { ["CHERE_INVOKING"] = "1", ["MSYSTEM"] = "MINGW64" });
+            using var pty = PseudoTerminal.Iniciar(bash, GitBash.ArgumentosDoShell, pasta, 120, 30,
+                TerminalSessao.Ambiente());
 
             var saida = new StringBuilder();
             var decoder = Encoding.UTF8.GetDecoder();
@@ -52,7 +52,9 @@ public class TerminalTests
                 catch (ObjectDisposedException) { }
             });
 
-            pty.Escrever(Encoding.UTF8.GetBytes("echo \"fim-$((40+2))-ação\"; pwd -W\r"));
+            // -W é do MSYS: mostra o caminho no formato do Windows
+            var pwd = OperatingSystem.IsWindows() ? "pwd -W" : "pwd";
+            pty.Escrever(Encoding.UTF8.GetBytes($"echo \"fim-$((40+2))-ação\"; {pwd}\r"));
 
             var relogio = Stopwatch.StartNew();
             string texto;

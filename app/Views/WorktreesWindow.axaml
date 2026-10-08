@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:GRepos.ViewModels"
+        xmlns:svc="using:GRepos.Services"
         xmlns:local="using:GRepos"
         x:Class="GRepos.Views.WorktreesWindow"
         x:DataType="vm:WorktreesViewModel"
@@ -49,7 +50,7 @@
                         CommandParameter="{Binding}" />
                 <Button Classes="tiny" BorderThickness="1" BorderBrush="{DynamicResource Border}"
                         Content="Pasta" IsVisible="{Binding PodeAbrir}"
-                        ToolTip.Tip="Abre a pasta no Explorer"
+                        ToolTip.Tip="{x:Static svc:Plataforma.DicaPasta}"
                         Command="{Binding $parent[ListBox].DataContext.AbrirPastaCommand}"
                         CommandParameter="{Binding}" />
                 <Button Classes="tiny danger" BorderThickness="1" BorderBrush="{DynamicResource Border}"

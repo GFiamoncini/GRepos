@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:GRepos.ViewModels"
+        xmlns:svc="using:GRepos.Services"
         xmlns:views="using:GRepos.Views"
         xmlns:controls="using:GRepos.Controls"
         xmlns:local="using:GRepos"
@@ -300,16 +301,16 @@
           <Border Grid.Column="8" Width="1" Margin="8,8" VerticalAlignment="Stretch"
                   Background="{DynamicResource Border}" IsVisible="{Binding TemCiOuGitHub}" />
 
-          <!-- abrir o repositório: no GitHub, na pasta do Windows e no Git Bash -->
+          <!-- abrir o repositório: no GitHub, na pasta do sistema e no terminal -->
           <controls:ToolButton Grid.Column="9" Label="Remoto" Icon="{StaticResource IconRemoto}"
                                ToolTip.Tip="Abrir o repositório no GitHub"
                                IsVisible="{Binding TemRemoto}"
                                Command="{Binding AbrirRemotoCommand}" />
           <controls:ToolButton Grid.Column="10" Label="Local" Icon="{StaticResource IconLocal}"
-                               ToolTip.Tip="Abrir a pasta no Windows"
+                               ToolTip.Tip="{x:Static svc:Plataforma.DicaAbrirPasta}"
                                Command="{Binding AbrirPastaCommand}" />
           <controls:ToolButton Grid.Column="11" Label="Terminal" Icon="{StaticResource IconTerminal}"
-                               ToolTip.Tip="Mostrar ou esconder o Git Bash embutido, na pasta do repositório"
+                               ToolTip.Tip="{x:Static svc:Plataforma.DicaTerminalEmbutido}"
                                Command="{Binding AlternarTerminalCommand}" Classes.destacado="{Binding TerminalAberto}" />
 
           <Border Grid.Column="12" Width="1" Margin="8,8" VerticalAlignment="Stretch"

@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:GRepos.ViewModels"
+             xmlns:svc="using:GRepos.Services"
              xmlns:local="using:GRepos"
              xmlns:controls="using:GRepos.Controls"
              x:Class="GRepos.Views.PainelView"
@@ -382,10 +383,10 @@
                               ToolTip.Tip="Issues do repositório: abertas, fechadas e etiquetas" />
                       <Button Content="Pasta" Classes="tiny" BorderThickness="1" Margin="0,0,6,0"
                               BorderBrush="{DynamicResource Border}" Command="{Binding AbrirPastaCommand}"
-                              ToolTip.Tip="Abre a pasta do repositório no Explorer" />
+                              ToolTip.Tip="{x:Static svc:Plataforma.DicaPastaDoRepositorio}" />
                       <Button Content="Terminal" Classes="tiny" BorderThickness="1" Margin="0,0,6,0"
                               BorderBrush="{DynamicResource Border}" Command="{Binding AbrirTerminalCommand}"
-                              ToolTip.Tip="Abre o Git Bash na pasta do repositório" />
+                              ToolTip.Tip="{x:Static svc:Plataforma.DicaTerminalNaPasta}" />
                     </WrapPanel>
                   </StackPanel>
                 </Border>

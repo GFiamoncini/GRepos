@@ -12,11 +12,21 @@ namespace GRepos.Services;
 /// O Windows não deixa sobrescrever um .exe em execução, mas deixa **renomear**: é nisso
 /// que a troca se apoia, e é o que dispensa um .bat auxiliar esperando o app fechar.
 /// A sequência é atual -> .old, novo -> atual, reabre, e o .old some na próxima abertura.
+/// No Linux a mesma sequência serve: o processo em execução segue no arquivo renomeado.
 /// </summary>
 public static class Atualizador
 {
     /// <summary>Repositório de onde o próprio app se atualiza.</summary>
     public const string Slug = "GFBmsoft/GRepos";
+
+    /// <summary>
+    /// Como termina, na release, o nome do executável que não precisa de nada instalado
+    /// e serve para este sistema: <c>GRepos-1.0.0.N-standalone.exe</c> no Windows,
+    /// <c>GRepos-1.0.0.N-linux-x64-standalone</c> no Linux.
+    /// </summary>
+    public static string SufixoStandalone => OperatingSystem.IsWindows()
+        ? "-standalone.exe"
+        : $"-linux-{System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant()}-standalone";
 
     /// <summary>Sufixo do executável antigo, apagado na abertura seguinte.</summary>
     public const string SufixoAntigo = ".old";
@@ -175,6 +185,10 @@ public static class Atualizador
         var antigo = exeAtual + SufixoAntigo;
         if (File.Exists(antigo)) File.Delete(antigo);
 
+        // download não traz a permissão de execução, e sem ela o novo nem reabre
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(exeNovo, File.GetUnixFileMode(exeAtual));
+
         File.Move(exeAtual, antigo);
         try
         {
@@ -189,5 +203,6 @@ public static class Atualizador
 
     /// <summary>Abre o executável recém-instalado. Quem chamou encerra este processo.</summary>
     public static void Reabrir(string exe) =>
-        Process.Start(new ProcessStartInfo(exe) { UseShellExecute = true });
+        // fora do Windows o "shell" seria o xdg-open, que abre documentos, não programas
+        Process.Start(new ProcessStartInfo(exe) { UseShellExecute = OperatingSystem.IsWindows() });
 }

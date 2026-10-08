@@ -10,14 +10,14 @@ using GRepos.Services;
 namespace GRepos.ViewModels;
 
 /// <summary>
-/// Um Git Bash embutido, preso a um repositório. Continua vivo ao trocar de repositório
+/// Um Git Bash embutido (no Linux, o shell do usuário), preso a um repositório. Continua vivo ao trocar de repositório
 /// (como as abas de terminal do VS Code): voltar a ele devolve o mesmo shell, com o
 /// histórico e o que estiver rodando.
 /// </summary>
 public sealed partial class TerminalSessao : ObservableObject, IDisposable
 {
     private readonly Func<string?> _gitBashConfigurado;
-    private ConPty? _pty;
+    private IPseudoTerminal? _pty;
     private int _colunas = 100;
     private int _linhas = 24;
 
@@ -70,12 +70,14 @@ public sealed partial class TerminalSessao : ObservableObject, IDisposable
 
         var configurado = _gitBashConfigurado();
         var bash = GitBash.LocalizarBash(configurado) ?? throw new FileNotFoundException(
-            string.IsNullOrWhiteSpace(configurado)
-                ? "Git Bash não encontrado. Informe a pasta do Git em Preferências."
-                : "bash.exe não encontrado em " + configurado.Trim() + ". Confira o caminho em Preferências.");
+            !OperatingSystem.IsWindows()
+                ? "Nenhum shell encontrado: a variável SHELL não aponta para um executável."
+                : string.IsNullOrWhiteSpace(configurado)
+                    ? "Git Bash não encontrado. Informe a pasta do Git em Preferências."
+                    : "bash.exe não encontrado em " + configurado.Trim() + ". Confira o caminho em Preferências.");
 
         _pty?.Dispose();
-        var pty = ConPty.Iniciar($"\"{bash}\" --login -i", Pasta, _colunas, _linhas, Ambiente());
+        var pty = PseudoTerminal.Iniciar(bash, GitBash.ArgumentosDoShell, Pasta, _colunas, _linhas, Ambiente());
         _pty = pty;
         Encerrada = false;
 
@@ -89,7 +91,7 @@ public sealed partial class TerminalSessao : ObservableObject, IDisposable
         Task.Run(() => LerSaida(pty));
     }
 
-    private void LerSaida(ConPty pty)
+    private void LerSaida(IPseudoTerminal pty)
     {
         var buffer = new byte[16 * 1024];
         try
@@ -113,11 +115,20 @@ public sealed partial class TerminalSessao : ObservableObject, IDisposable
         }
     }
 
-    private static Dictionary<string, string?> Ambiente() => new()
+    internal static Dictionary<string, string?> Ambiente()
     {
-        // o /etc/profile do Git Bash vai para o HOME sem isto
-        ["CHERE_INVOKING"] = "1",
-        ["MSYSTEM"] = "MINGW64",
+        var ambiente = AmbienteComum();
+        if (OperatingSystem.IsWindows())
+        {
+            // o /etc/profile do Git Bash vai para o HOME sem isto
+            ambiente["CHERE_INVOKING"] = "1";
+            ambiente["MSYSTEM"] = "MINGW64";
+        }
+        return ambiente;
+    }
+
+    private static Dictionary<string, string?> AmbienteComum() => new()
+    {
         ["TERM"] = "xterm-256color",
 
         // mesmas que o GitService não herda: com elas o git do terminal não pede login

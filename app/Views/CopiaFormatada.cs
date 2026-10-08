@@ -13,8 +13,12 @@ namespace GRepos.Views;
 /// </summary>
 public static class CopiaFormatada
 {
-    /// <summary>O nome com que o Windows registra HTML na área de transferência.</summary>
-    private static readonly DataFormat<byte[]> FormatoHtml = DataFormat.CreateBytesPlatformFormat("HTML Format");
+    /// <summary>
+    /// O nome com que o sistema registra HTML na área de transferência: o formato próprio
+    /// do Windows, com cabeçalho, e o tipo MIME puro no Linux.
+    /// </summary>
+    private static readonly DataFormat<byte[]> FormatoHtml =
+        DataFormat.CreateBytesPlatformFormat(OperatingSystem.IsWindows() ? "HTML Format" : "text/html");
 
     /// <returns>Falso quando o sistema não aceitou o HTML e foi só o texto limpo.</returns>
     public static async Task<bool> CopiarAsync(IClipboard clipboard, string html, string textoLimpo)
@@ -23,7 +27,9 @@ public static class CopiaFormatada
         {
             var item = new DataTransferItem();
             item.Set(DataFormat.Text, textoLimpo);
-            item.Set(FormatoHtml, MarkdownExport.ParaAreaDeTransferencia(html));
+            item.Set(FormatoHtml, OperatingSystem.IsWindows()
+                ? MarkdownExport.ParaAreaDeTransferencia(html)
+                : new System.Text.UTF8Encoding(false).GetBytes(html));
 
             var dados = new DataTransfer();
             dados.Add(item);

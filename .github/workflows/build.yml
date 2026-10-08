@@ -1,8 +1,9 @@
 name: build
 
-# Todo push na main compila, roda os testes e deixa os dois executáveis como
-# artefato da execução (somem depois de 30 dias). Um push de tag no formato
-# 1.0.0.N faz o mesmo e ainda cria a Release com os dois .exe, que não expira.
+# Todo push na main compila, roda os testes e deixa os executáveis (dois do
+# Windows, dois do Linux) como artefato da execução (somem depois de 30 dias).
+# Um push de tag no formato 1.0.0.N faz o mesmo e ainda cria a Release com os
+# quatro, que não expira.
 on:
   push:
     branches: [main]
@@ -30,6 +31,11 @@ jobs:
     defaults:
       run:
         shell: pwsh
+    # o job do Linux usa a mesma versão, em vez de calcular de novo em bash
+    outputs:
+      prefixo: ${{ steps.versao.outputs.prefixo }}
+      sufixo: ${{ steps.versao.outputs.sufixo }}
+      versao: ${{ steps.versao.outputs.versao }}
 
     steps:
       # fetch-depth 0 traz o histórico e as tags; sem elas o git describe
@@ -52,6 +58,7 @@ jobs:
       # continua 1.0.0.3 e o nome do produto fica 1.0.0.3-dev.5, para não
       # parecer uma versão lançada. Sem tag nenhuma no repositório, 0.0.0.0.
       - name: Calcular a versão
+        id: versao
         run: |
           $padrao = '[0-9]*.[0-9]*.[0-9]*.[0-9]*'
 
@@ -81,6 +88,9 @@ jobs:
           Add-Content -Path $env:GITHUB_ENV -Value "VERSION_PREFIX=$prefixo"
           Add-Content -Path $env:GITHUB_ENV -Value "VERSION_SUFFIX=$sufixo"
           Add-Content -Path $env:GITHUB_ENV -Value "VERSION=$versao"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "prefixo=$prefixo"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "sufixo=$sufixo"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "versao=$versao"
           Write-Output "versão: $versao"
           exit 0
 
@@ -160,6 +170,10 @@ jobs:
               ''
               "- ``GRepos-$tag.exe``: precisa do [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) instalado."
               "- ``GRepos-$tag-standalone.exe``: não precisa de nada instalado, por isso é bem maior."
+              "- ``GRepos-$tag-linux-x64``: Linux, precisa do [.NET 8 Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) instalado."
+              "- ``GRepos-$tag-linux-x64-standalone``: Linux, não precisa de nada instalado."
+              ''
+              'No Linux, dê permissão de execução depois de baixar: ``chmod +x GRepos-*-linux-x64*``.'
               ''
               "## $titulo"
               ''
@@ -169,3 +183,78 @@ jobs:
               "$env:RUNNER_TEMP/dist/GRepos-$tag.exe" `
               "$env:RUNNER_TEMP/dist/GRepos-$tag-standalone.exe" `
               --title "GRepos $tag" --notes-file $notas --verify-tag
+
+  # Depois do job do Windows, e não ao lado: num push de tag é ele que cria a
+  # Release, e este só anexa os dois arquivos do Linux a ela.
+  linux:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VERSION: ${{ needs.build.outputs.versao }}
+      VERSION_PREFIX: ${{ needs.build.outputs.prefixo }}
+      VERSION_SUFFIX: ${{ needs.build.outputs.sufixo }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      # Os mesmos testes, agora com o que só existe aqui: o pty do terminal
+      # embutido, a busca do emulador de terminal e o diff externo pelo PATH.
+      - name: Testes
+        run: dotnet test -c Release --nologo
+
+      - name: Publicar (precisa do .NET 8 Runtime)
+        run: >
+          dotnet publish app/GRepos.csproj -c Release -r linux-x64
+          --self-contained false -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          "-p:VersionPrefix=$VERSION_PREFIX" "-p:VersionSuffix=$VERSION_SUFFIX"
+          -o "$RUNNER_TEMP/publish/runtime"
+
+      - name: Publicar (standalone, não precisa de nada instalado)
+        run: >
+          dotnet publish app/GRepos.csproj -c Release -r linux-x64
+          --self-contained true -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          "-p:VersionPrefix=$VERSION_PREFIX" "-p:VersionSuffix=$VERSION_SUFFIX"
+          -o "$RUNNER_TEMP/publish/standalone"
+
+      # O nome termina em "-linux-x64-standalone": é por esse fim que o app
+      # acha, na Release, o arquivo com que se atualiza (Atualizador.SufixoStandalone).
+      - name: Nomear os executáveis
+        run: |
+          mkdir -p "$RUNNER_TEMP/dist"
+          cp "$RUNNER_TEMP/publish/runtime/GRepos" "$RUNNER_TEMP/dist/GRepos-$VERSION-linux-x64"
+          cp "$RUNNER_TEMP/publish/standalone/GRepos" "$RUNNER_TEMP/dist/GRepos-$VERSION-linux-x64-standalone"
+          ls -lh "$RUNNER_TEMP/dist"
+
+      - name: Artefato (runtime)
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v7
+        with:
+          name: GRepos-${{ env.VERSION }}-linux-x64
+          path: ${{ runner.temp }}/dist/GRepos-${{ env.VERSION }}-linux-x64
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Artefato (standalone)
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v7
+        with:
+          name: GRepos-${{ env.VERSION }}-linux-x64-standalone
+          path: ${{ runner.temp }}/dist/GRepos-${{ env.VERSION }}-linux-x64-standalone
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Anexar à Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release upload "$GITHUB_REF_NAME"
+          "$RUNNER_TEMP/dist/GRepos-$GITHUB_REF_NAME-linux-x64"
+          "$RUNNER_TEMP/dist/GRepos-$GITHUB_REF_NAME-linux-x64-standalone"

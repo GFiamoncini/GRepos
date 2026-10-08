@@ -910,7 +910,7 @@ public sealed partial class MainViewModel : ObservableObject
             Acao("Pastas de trabalho (worktrees)…", $"outra branch de {nome} em outra pasta", OpenWorktreesCommand);
             Acao("Esconder (stash)…", $"guardar ou recuperar alterações de {nome}", OpenStashCommand);
             Acao("Desfazer a última ação", nome, DesfazerCommand);
-            Acao("Terminal", $"Git Bash na pasta de {nome}", AlternarTerminalCommand);
+            Acao("Terminal", $"{Plataforma.Terminal} na pasta de {nome}", AlternarTerminalCommand);
             Acao("Abrir a pasta", atual.Path, AbrirPastaCommand);
             Acao("Abrir no GitHub", RemoteWebUrl, AbrirRemotoCommand, TemRemoto);
             Acao("Configurar repositório…", nome, OpenRepoConfigCommand);

@@ -4,6 +4,7 @@ using Xunit;
 
 namespace GRepos.Tests;
 
+/// <summary>A busca do Git Bash na instalação do Git for Windows; o Linux está em <see cref="TerminalLinuxTests"/>.</summary>
 public class GitBashTests
 {
     private const string Raiz = @"C:\Program Files\Git";
@@ -15,7 +16,7 @@ public class GitBashTests
         return set.Contains;
     }
 
-    [Theory]
+    [TeoriaWindows]
     [InlineData(@"C:\Program Files\Git")]
     [InlineData(@"C:\Program Files\Git\")]
     [InlineData(@"""C:\Program Files\Git""")]
@@ -26,35 +27,35 @@ public class GitBashTests
         Assert.Equal(GitBashExe, GitBash.Localizar(configurado, Existem(GitBashExe), path: ""));
     }
 
-    [Fact]
+    [FatoWindows]
     public void ExecutavelConfiguradoValeSeExistir()
     {
         Assert.Equal(GitBashExe, GitBash.Localizar(GitBashExe, Existem(GitBashExe), path: ""));
         Assert.Null(GitBash.Localizar(@"D:\nada\git-bash.exe", Existem(GitBashExe), path: ""));
     }
 
-    [Fact]
+    [FatoWindows]
     public void CaminhoConfiguradoErradoNaoCaiNaBuscaAutomatica()
     {
         // o PATH tem o Git, mas o usuário apontou para outro lugar: avisar, não disfarçar
         Assert.Null(GitBash.Localizar(@"D:\Ferramentas", Existem(GitBashExe), path: Raiz + @"\cmd"));
     }
 
-    [Fact]
+    [FatoWindows]
     public void VazioProcuraNoPath()
     {
         var path = @"C:\Windows\system32;C:\Program Files\Git\cmd;C:\outros";
         Assert.Equal(GitBashExe, GitBash.Localizar("", Existem(GitBashExe), path));
     }
 
-    [Fact]
+    [FatoWindows]
     public void SemGitBashUsaOBashDaPastaBin()
     {
         var bash = @"D:\PortableGit\bin\bash.exe";
         Assert.Equal(bash, GitBash.Localizar(@"D:\PortableGit", Existem(bash), path: ""));
     }
 
-    [Fact]
+    [FatoWindows]
     public void EmbutidoUsaOBashAoLadoDoGitBash()
     {
         var bash = Raiz + @"\bin\bash.exe";
@@ -62,7 +63,7 @@ public class GitBashTests
         Assert.Null(GitBash.LocalizarBash(Raiz, Existem(GitBashExe), path: ""));
     }
 
-    [Fact]
+    [FatoWindows]
     public void PastaSemNadaDevolveNull()
     {
         Assert.Null(GitBash.Localizar(@"D:\vazio", Existem(), path: ""));

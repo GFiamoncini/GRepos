@@ -90,6 +90,11 @@ public static class GitService
         psi.Environment.Remove("GIT_ASKPASS");
         psi.Environment.Remove("SSH_ASKPASS");
 
+        // As mensagens do git são lidas em inglês (MensagensGit e os testes de saída); num
+        // Linux em português ele responderia traduzido e nada disso casaria. LANGUAGE só
+        // troca o idioma das mensagens: acentos, datas e ordenação seguem os do sistema.
+        psi.Environment["LANGUAGE"] = "en";
+
         foreach (var (nome, valor) in env) psi.Environment[nome] = valor;
 
         // Criar o processo custa alguns milissegundos e, numa varredura de cem repositórios,

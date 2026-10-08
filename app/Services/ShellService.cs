@@ -4,7 +4,7 @@ using System.IO;
 
 namespace GRepos.Services;
 
-/// <summary>Abre endereços e pastas no sistema — navegador padrão e Explorer.</summary>
+/// <summary>Abre endereços e pastas no sistema — navegador padrão e gerenciador de arquivos.</summary>
 public static class ShellService
 {
     public static void AbrirUrl(string url)
@@ -24,7 +24,15 @@ public static class ShellService
         if (!Directory.Exists(caminho))
             throw new DirectoryNotFoundException("Pasta não encontrada: " + caminho);
 
-        Process.Start(new ProcessStartInfo("explorer.exe", $"\"{Path.GetFullPath(caminho)}\"")
+        var cheia = Path.GetFullPath(caminho);
+        if (!OperatingSystem.IsWindows())
+        {
+            // o .NET entrega ao xdg-open, que abre o gerenciador de arquivos do ambiente
+            Process.Start(new ProcessStartInfo(cheia) { UseShellExecute = true })?.Dispose();
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo("explorer.exe", $"\"{cheia}\"")
         {
             UseShellExecute = true,
         });

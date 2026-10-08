@@ -406,7 +406,7 @@ public sealed class AddRepoWindow : DialogWindow
         modos.Children.Add(existente);
         modos.Children.Add(clone);
 
-        var path = new TextBox { Watermark = @"D:\Projetos\..." };
+        var path = new TextBox { Watermark = Plataforma.ExemploDePasta };
         var name = new TextBox();
         var group = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
         var newGroup = new TextBox { Watermark = "Ex.: Financeiro" };
@@ -480,7 +480,7 @@ public sealed class AddRepoWindow : DialogWindow
             Margin = new Thickness(0, 4, 0, 0),
             TextWrapping = TextWrapping.Wrap,
             Classes = { "faint" },
-            Text = "O link fica gravado só com o usuário da conta; o token é o dela, guardado no Windows. " +
+            Text = $"O link fica gravado só com o usuário da conta; o token é o dela, guardado {Plataforma.OndeFicaOToken}. " +
                    "Se o link colado tiver um token, ele não é gravado.",
         };
 
@@ -739,7 +739,7 @@ public sealed class RepoConfigWindow : DialogWindow
 
             var temToken = !string.IsNullOrEmpty(await GitHubService.TokenDoUsuarioAsync(usuarioConta));
             autenticacao.Text = temToken
-                ? $"✓ O git usa o token da conta “{usuarioConta}”, guardado no Windows."
+                ? $"✓ O git usa o token da conta “{usuarioConta}”, guardado {Plataforma.OndeFicaOToken}."
                 : $"✗ Nenhum token salvo para “{usuarioConta}”. Salve em Preferências → Autenticação.";
         }
 
@@ -996,10 +996,14 @@ public sealed class SettingsWindow : DialogWindow
         var gitBash = new TextBox
         {
             Text = s.GitBashPath,
-            Watermark = @"vazio procura sozinho — ex.: C:\Program Files\Git",
+            Watermark = Plataforma.Windows
+                ? @"vazio procura sozinho — ex.: C:\Program Files\Git"
+                : "vazio procura sozinho — ex.: konsole ou /usr/bin/kitty",
         };
         var procurarGit = BtnDiscreto("Procurar…");
         procurarGit.Margin = new Thickness(6, 0, 0, 0);
+        // no Linux o que se informa é um comando, não uma pasta de instalação
+        procurarGit.IsVisible = Plataforma.Windows;
         var gitBashUsado = new TextBlock
         {
             FontSize = 11.5,
@@ -1016,8 +1020,12 @@ public sealed class SettingsWindow : DialogWindow
             gitBashUsado.Text = achou is not null
                 ? "Abre: " + achou
                 : string.IsNullOrWhiteSpace(gitBash.Text)
-                    ? "Git Bash não encontrado automaticamente — informe a pasta de instalação do Git."
-                    : "Nenhum git-bash.exe nesse caminho.";
+                    ? Plataforma.Windows
+                        ? "Git Bash não encontrado automaticamente — informe a pasta de instalação do Git."
+                        : "Nenhum emulador de terminal encontrado automaticamente — informe o comando."
+                    : Plataforma.Windows
+                        ? "Nenhum git-bash.exe nesse caminho."
+                        : "Nenhum executável com esse nome ou caminho.";
             gitBashUsado.Foreground = achou is null ? new SolidColorBrush(Color.Parse("#E5534B")) : null;
         }
 
@@ -1039,7 +1047,9 @@ public sealed class SettingsWindow : DialogWindow
         var diffExterno = new TextBox
         {
             Text = s.DiffExternoPath,
-            Watermark = @"vazio procura sozinho — ex.: C:\Program Files\Beyond Compare 5",
+            Watermark = Plataforma.Windows
+                ? @"vazio procura sozinho — ex.: C:\Program Files\Beyond Compare 5"
+                : "vazio procura sozinho — ex.: meld ou /usr/bin/bcompare",
         };
         var diffArgs = new TextBox { Text = s.DiffExternoArgs };
         var procurarDiff = BtnDiscreto("Procurar…");
@@ -1058,8 +1068,12 @@ public sealed class SettingsWindow : DialogWindow
             diffUsado.Text = achou is not null
                 ? "Abre: " + achou
                 : string.IsNullOrWhiteSpace(diffExterno.Text)
-                    ? "Nenhuma ferramenta encontrada automaticamente — informe a pasta de instalação ou o .exe."
-                    : "Nenhuma ferramenta conhecida nessa pasta. Se for outra, informe o caminho completo do .exe.";
+                    ? Plataforma.Windows
+                        ? "Nenhuma ferramenta encontrada automaticamente — informe a pasta de instalação ou o .exe."
+                        : "Nenhuma ferramenta encontrada automaticamente — informe o comando ou o caminho do executável."
+                    : Plataforma.Windows
+                        ? "Nenhuma ferramenta conhecida nessa pasta. Se for outra, informe o caminho completo do .exe."
+                        : "Nenhuma ferramenta nesse caminho. Informe o comando ou o caminho completo do executável.";
             diffUsado.Foreground = achou is null && !string.IsNullOrWhiteSpace(diffExterno.Text)
                 ? new SolidColorBrush(Color.Parse("#E5534B"))
                 : null;
@@ -1222,7 +1236,9 @@ public sealed class SettingsWindow : DialogWindow
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 6, 0, 0),
             Classes = { "faint" },
-            Text = "O token é guardado no Gerenciador de Credenciais do Windows, junto com o do git. " +
+            Text = (Plataforma.Windows
+                       ? "O token é guardado no Gerenciador de Credenciais do Windows, junto com o do git. "
+                       : "O token é guardado pelo gerenciador de credenciais do git, o mesmo que o envio usa. ") +
                    "Só o nome de usuário fica no arquivo de configuração.",
         };
 
@@ -1375,7 +1391,7 @@ public sealed class SettingsWindow : DialogWindow
             Classes = { "faint" },
             Text = "Verificando…",
         };
-        var configurarHelper = BtnDiscreto("Usar o Gerenciador de Credenciais do Windows");
+        var configurarHelper = BtnDiscreto(GitHubService.RotuloDoHelperPadrao);
 
         async Task AtualizarHelperAsync()
         {
@@ -1461,7 +1477,9 @@ public sealed class SettingsWindow : DialogWindow
         };
         if (groupsPanel.Children.Count > 0) aparencia.Add(Field("Grupos", groupsPanel));
 
-        var campoDiff = Field("Pasta de instalação (ou caminho do .exe)", linhaDiff);
+        var campoDiff = Field(Plataforma.Windows
+            ? "Pasta de instalação (ou caminho do .exe)"
+            : "Comando ou caminho do executável", linhaDiff);
         campoDiff.Margin = new Thickness(0);
 
         // ------------------------------------------------------ notas da versão
@@ -1496,7 +1514,9 @@ public sealed class SettingsWindow : DialogWindow
             }),
             ("Terminal", new Control[]
             {
-                Field("Git Bash (pasta do Git ou caminho do git-bash.exe)", linhaGitBash),
+                Field(Plataforma.Windows
+                    ? "Git Bash (pasta do Git ou caminho do git-bash.exe)"
+                    : "Emulador de terminal da janela separada (comando ou caminho)", linhaGitBash),
                 gitBashUsado,
             }),
             ("Diff externo", new Control[]

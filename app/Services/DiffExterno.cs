@@ -22,7 +22,8 @@ public sealed record VersaoDeArquivo(string? Rev, string Caminho, string Rotulo)
 /// <summary>
 /// Abre dois lados de um arquivo numa ferramenta de comparação instalada (Beyond Compare,
 /// WinMerge, Meld…). O caminho configurado pode ser a pasta de instalação ou o próprio
-/// executável; vazio, procura nos lugares em que os instaladores costumam deixar.
+/// executável; vazio, procura nos lugares em que os instaladores costumam deixar — no
+/// Linux, no PATH, onde também vale informar só o nome do comando.
 /// </summary>
 public static class DiffExterno
 {
@@ -35,6 +36,9 @@ public static class DiffExterno
     /// <c>$LTITLE</c> e <c>$RTITLE</c>, os rótulos dos lados.
     /// </summary>
     private static readonly (string Exe, string[] Pastas, string Argumentos)[] Conhecidas =
+        OperatingSystem.IsWindows() ? NoWindows : NoLinux;
+
+    private static (string Exe, string[] Pastas, string Argumentos)[] NoWindows => new[]
     {
         ("BCompare.exe", new[] { "Beyond Compare 5", "Beyond Compare 4", "Beyond Compare 3" },
             "\"$LOCAL\" \"$REMOTE\" /lefttitle=\"$LTITLE\" /righttitle=\"$RTITLE\""),
@@ -46,6 +50,28 @@ public static class DiffExterno
         ("TortoiseGitMerge.exe", new[] { @"TortoiseGit\bin" }, "/base:\"$LOCAL\" /mine:\"$REMOTE\""),
         ("Code.exe", new[] { "Microsoft VS Code" }, "--diff \"$LOCAL\" \"$REMOTE\""),
     };
+
+    /// <summary>No Linux as "pastas de instalação" são as do PATH, sem subpasta.</summary>
+    private static (string Exe, string[] Pastas, string Argumentos)[] NoLinux
+    {
+        get
+        {
+            var noPath = new[] { "" };
+            return new[]
+            {
+                // o bcompare do Linux usa "-" nas opções: uma "/" seria lida como caminho
+                ("bcompare", noPath, "\"$LOCAL\" \"$REMOTE\" -lefttitle=\"$LTITLE\" -righttitle=\"$RTITLE\""),
+                ("meld", noPath, "-L \"$LTITLE\" -L \"$RTITLE\" \"$LOCAL\" \"$REMOTE\""),
+                ("kdiff3", noPath, "--L1 \"$LTITLE\" --L2 \"$RTITLE\" \"$LOCAL\" \"$REMOTE\""),
+                ("kompare", noPath, ArgumentosGenericos),
+                ("p4merge", noPath, ArgumentosGenericos),
+                ("diffuse", noPath, ArgumentosGenericos),
+                ("xxdiff", noPath, ArgumentosGenericos),
+                ("code", noPath, "--diff \"$LOCAL\" \"$REMOTE\""),
+                ("codium", noPath, "--diff \"$LOCAL\" \"$REMOTE\""),
+            };
+        }
+    }
 
     /// <summary>
     /// Executável a abrir, ou null se não achou. <paramref name="existe"/> e
@@ -65,6 +91,10 @@ public static class DiffExterno
             if (existe(conf)) return conf; // o próprio executável (ou um .cmd que o chama)
             if (conf.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) return null;
 
+            // só o nome do comando ("meld"): vale o que o PATH tiver
+            if (!OperatingSystem.IsWindows() && !conf.Contains('/'))
+                return (raizes ?? RaizesPadrao()).Select(r => Path.Combine(r, conf)).FirstOrDefault(existe);
+
             var pasta = conf.TrimEnd('\\', '/');
             return Conhecidas.Select(c => Path.Combine(pasta, c.Exe)).FirstOrDefault(existe);
         }
@@ -78,7 +108,7 @@ public static class DiffExterno
     }
 
     private static IEnumerable<string> RaizesPadrao() =>
-        new[]
+        !OperatingSystem.IsWindows() ? Plataforma.PastasDoPath() : new[]
         {
             Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
             Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
@@ -89,8 +119,10 @@ public static class DiffExterno
     public static string ArgumentosPadrao(string exe)
     {
         var nome = Path.GetFileName(exe);
+        // no Linux "Code" e "code" são arquivos diferentes; no Windows, o mesmo
+        var comparacao = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         foreach (var c in Conhecidas)
-            if (c.Exe.Equals(nome, StringComparison.OrdinalIgnoreCase))
+            if (c.Exe.Equals(nome, comparacao))
                 return c.Argumentos;
         return ArgumentosGenericos;
     }

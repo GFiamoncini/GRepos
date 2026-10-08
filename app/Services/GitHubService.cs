@@ -43,8 +43,11 @@ public sealed class Release
     /// O executável que não precisa de nada instalado. É o único que serve para trocar
     /// sozinho: o outro depende do .NET 8 estar na máquina de destino.
     /// </summary>
-    public ReleaseAsset? Standalone => Arquivos.FirstOrDefault(a =>
-        a.Nome.EndsWith("-standalone.exe", StringComparison.OrdinalIgnoreCase));
+    public ReleaseAsset? Standalone => StandaloneCom(Atualizador.SufixoStandalone);
+
+    /// <summary>O standalone de um sistema, pelo fim do nome do arquivo.</summary>
+    public ReleaseAsset? StandaloneCom(string sufixo) => Arquivos.FirstOrDefault(a =>
+        a.Nome.EndsWith(sufixo, StringComparison.OrdinalIgnoreCase));
 }
 
 /// <summary>Conta do GitHub, no estilo do cartão de perfil.</summary>
@@ -337,7 +340,7 @@ public static class GitHubService
     }
 
     /// <summary>
-    /// Guarda o token no gerenciador de credenciais do Windows, pelo próprio git.
+    /// Guarda o token no gerenciador de credenciais do sistema, pelo próprio git.
     /// O token nunca entra no workspace.json — lá fica só o nome de usuário.
     /// </summary>
     public static async Task SalvarCredencialAsync(string usuario, string token)
@@ -392,11 +395,45 @@ public static class GitHubService
         }
     }
 
-    /// <summary>Nome do helper do Windows. O git &gt;= 2.39 chama de "manager".</summary>
-    public const string HelperPadrao = "manager";
+    /// <summary>
+    /// Helper que o botão das preferências configura. No Windows é o Gerenciador de
+    /// Credenciais, que o git &gt;= 2.39 chama de "manager"; no Linux, o melhor instalado.
+    /// </summary>
+    public static string HelperPadrao { get; } =
+        OperatingSystem.IsWindows() ? "manager" : HelperDoLinux();
 
     /// <summary>
-    /// Aponta o git global para o Gerenciador de Credenciais do Windows. É o que faz a
+    /// No Linux não há um gerenciador único: o Git Credential Manager se estiver
+    /// instalado, senão o chaveiro do ambiente (libsecret), senão o arquivo
+    /// <c>~/.git-credentials</c> — em texto puro, e por isso o último.
+    /// <paramref name="existe"/> e <paramref name="path"/> só são trocados nos testes.
+    /// </summary>
+    public static string HelperDoLinux(Func<string, bool>? existe = null, string? path = null)
+    {
+        existe ??= System.IO.File.Exists;
+        if (Plataforma.NoPath("git-credential-manager", existe, path) is not null) return "manager";
+
+        // os helpers do próprio git ficam fora do PATH, na pasta de executáveis dele
+        var pastasDoGit = new[] { "/usr/libexec/git-core", "/usr/lib/git-core", "/usr/local/libexec/git-core" };
+        return pastasDoGit.Concat(Plataforma.PastasDoPath(path))
+                          .Any(p => existe(System.IO.Path.Combine(p, "git-credential-libsecret")))
+            ? "libsecret"
+            : "store";
+    }
+
+    /// <summary>Texto do botão que configura o <see cref="HelperPadrao"/>.</summary>
+    public static string RotuloDoHelperPadrao => RotuloDoHelper(HelperPadrao, OperatingSystem.IsWindows());
+
+    public static string RotuloDoHelper(string helper, bool windows) => helper switch
+    {
+        _ when windows => "Usar o Gerenciador de Credenciais do Windows",
+        "manager" => "Usar o Git Credential Manager",
+        "libsecret" => "Usar o chaveiro do sistema (libsecret)",
+        _ => "Guardar em ~/.git-credentials (texto puro)",
+    };
+
+    /// <summary>
+    /// Aponta o git global para o <see cref="HelperPadrao"/>. É o que faz a
     /// autenticação ser pedida uma vez só: sem helper, o git esquece o token a cada push.
     /// </summary>
     public static async Task ConfigurarHelperAsync()

@@ -51,7 +51,7 @@ public static class RemotoConfig
         else await GitService.SetRemoteUrlAsync(repo, final);
 
         return "Link do git atualizado: " + UrlTemplate.Mascarar(final, token) +
-               (migrou ? ". O token que estava no link foi guardado no Windows." : ".");
+               (migrou ? $". O token que estava no link foi guardado {Plataforma.OndeFicaOToken}." : ".");
     }
 
     /// <summary>Nome da pasta que o "git clone" criaria: o último trecho do link, sem ".git".</summary>
@@ -102,7 +102,7 @@ public static class RemotoConfig
         if (final == atual) return null;
 
         return UrlTemplate.SegredoEmbutido(atual) is not null
-            ? "O link atual tem um token gravado. Ao salvar, o token sai do link e o git passa a usar o da conta acima, guardado no Windows."
+            ? $"O link atual tem um token gravado. Ao salvar, o token sai do link e o git passa a usar o da conta acima, guardado {Plataforma.OndeFicaOToken}."
             : "Ao salvar, o link do git passa a ser " + final + ".";
     }
 }

@@ -26,6 +26,16 @@ public class AtualizadorTests
           "name": "GRepos-1.0.0.2-standalone.exe",
           "size": 93323264,
           "browser_download_url": "https://github.com/GFBmsoft/GRepos/releases/download/1.0.0.2/GRepos-1.0.0.2-standalone.exe"
+        },
+        {
+          "name": "GRepos-1.0.0.2-linux-x64",
+          "size": 40110000,
+          "browser_download_url": "https://github.com/GFBmsoft/GRepos/releases/download/1.0.0.2/GRepos-1.0.0.2-linux-x64"
+        },
+        {
+          "name": "GRepos-1.0.0.2-linux-x64-standalone",
+          "size": 81222333,
+          "browser_download_url": "https://github.com/GFBmsoft/GRepos/releases/download/1.0.0.2/GRepos-1.0.0.2-linux-x64-standalone"
         }
       ]
     }
@@ -56,14 +66,48 @@ public class AtualizadorTests
 
         Assert.NotNull(release);
         Assert.Equal("1.0.0.2", release!.Tag);
-        Assert.Equal(2, release.Arquivos.Count);
+        Assert.Equal(4, release.Arquivos.Count);
 
         // o que troca sozinho é o standalone: o outro depende do .NET instalado
-        var alvo = release.Standalone;
+        var alvo = release.StandaloneCom("-standalone.exe");
         Assert.NotNull(alvo);
         Assert.Equal("GRepos-1.0.0.2-standalone.exe", alvo!.Nome);
         Assert.Equal(93323264, alvo.Tamanho);
         Assert.StartsWith("https://", alvo.Url);
+
+        // cada sistema pega o seu, e o que roda agora é um dos dois
+        Assert.Equal("GRepos-1.0.0.2-linux-x64-standalone", release.StandaloneCom("-linux-x64-standalone")!.Nome);
+        Assert.Null(release.StandaloneCom("-linux-arm64-standalone"));
+        if (OperatingSystem.IsWindows() ||
+            System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture ==
+            System.Runtime.InteropServices.Architecture.X64)
+            Assert.EndsWith(Atualizador.SufixoStandalone, release.Standalone!.Nome);
+    }
+
+    [FatoLinux]
+    public void No_linux_o_novo_herda_a_permissao_de_execucao()
+    {
+        if (OperatingSystem.IsWindows()) return; // já ignorado lá; isto é para o analisador
+
+        var dir = Pasta();
+        try
+        {
+            var atual = Path.Combine(dir, "GRepos");
+            var novo = Path.Combine(dir, "GRepos-1.0.0.2-linux-x64-standalone.baixando");
+            File.WriteAllText(atual, "versao antiga");
+            File.WriteAllText(novo, "versao nova");
+            File.SetUnixFileMode(atual, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+            Atualizador.Trocar(atual, novo);
+
+            // download chega sem o bit de execução: sem isto o app novo nem reabriria
+            Assert.True(File.GetUnixFileMode(atual).HasFlag(UnixFileMode.UserExecute));
+            Assert.Equal("versao nova", File.ReadAllText(atual));
+        }
+        finally
+        {
+            Limpar(dir);
+        }
     }
 
     [Fact]

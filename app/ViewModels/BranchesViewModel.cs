@@ -173,7 +173,7 @@ public sealed partial class BranchesViewModel : ObservableObject
             mensagem.Contains("safe.directory", StringComparison.OrdinalIgnoreCase))
         {
             PodeConfiar = true;
-            Erro = "Este repositório pertence a outro usuário do Windows, e o git bloqueia o acesso " +
+            Erro = $"Este repositório pertence a {Plataforma.OutroUsuario}, e o git bloqueia o acesso " +
                    "por segurança. Se a pasta é sua, marque-a como confiável.";
             return;
         }

@@ -17,7 +17,7 @@ namespace GRepos.Services;
 public static class Atualizador
 {
     /// <summary>Repositório de onde o próprio app se atualiza.</summary>
-    public const string Slug = "GFBmsoft/GRepos";
+    public const string Slug = "GFiamoncini/GRepos";
 
     /// <summary>
     /// Como termina, na release, o nome do executável que não precisa de nada instalado

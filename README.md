@@ -1,6 +1,6 @@
 # GRepos
 
-[![build](https://github.com/GFBmsoft/GRepos/actions/workflows/build.yml/badge.svg)](https://github.com/GFBmsoft/GRepos/actions/workflows/build.yml)
+[![build](https://github.com/GFiamoncini/GRepos/actions/workflows/build.yml/badge.svg)](https://github.com/GFiamoncini/GRepos/actions/workflows/build.yml)
 
 Cliente Git desktop para quem trabalha com **muitos repositórios ao mesmo tempo** —
 substituto do SourceTree com foco em organização: a sidebar mostra todos os repositórios
@@ -17,7 +17,7 @@ Node, Rust nem Build Tools: o SDK do .NET resolve tudo.
 ## Download
 
 A cada versão marcada, o [GitHub Actions](.github/workflows/build.yml) publica quatro
-executáveis na [página de releases](https://github.com/GFBmsoft/GRepos/releases), cada um
+executáveis na [página de releases](https://github.com/GFiamoncini/GRepos/releases), cada um
 **um arquivo só**:
 
 | Arquivo | Tamanho | Exige |
